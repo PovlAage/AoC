@@ -3,8 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="uv (AoC)" />
   </component>
-  <component name="GithubDefaultAccount">
-    <option name="defaultAccountId" value="349b1454-548a-462d-9cde-4a832b266ed4" />
-  </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="uv (AoC)" project-jdk-type="Python SDK" />
 </project>

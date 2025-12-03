@@ -25,12 +25,17 @@ def parse(ranges):
 assert parse("11-22") == [(11,22)]
 assert parse("11-22,95-115") == [(11,22), (95,115)]
 
+def all_equal(id):
+    sid = str(id)
+    l = len(sid)
+    return all((sid[k] == sid[0] for k in range(1, l)))
+
 def is_invalid_p(id, p):
     sid = str(id)
     l = len(sid)
-    if p == l and all((sid[k] == sid[0] for k in range(1, l))):
+    if p == l and all_equal(id):
         return True
-    if l % p != 0:
+    elif l % p != 0:
         return False
     else:
         s = l // p
@@ -46,6 +51,7 @@ assert primes[-1] >= max_len // 2
 def is_invalid(id, b=False):
     primes_to_use = primes if b else [2]
     return any((is_invalid_p(id, p=p) for p in primes_to_use))
+
 assert is_invalid(55)
 assert is_invalid(6464)
 assert is_invalid(123123)
