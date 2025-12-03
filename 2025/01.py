@@ -3,6 +3,7 @@ import functools
 import itertools
 from collections import defaultdict
 from itertools import permutations, pairwise
+from time import time
 
 import numpy as np
 import re
@@ -10,6 +11,7 @@ from enum import StrEnum
 
 day = int(__file__.rstrip('.py').split('/')[-1])
 print("day", day)
+start_time = time()
 
 def read_input() -> str:
     return open(f'input/{day:02}').read()
@@ -61,5 +63,7 @@ L82
 assert a(test_input) == 3
 assert b(test_input) == 6
 
-print(a(read_input()))
-print(b(read_input()))
+print(a(read_input()), 1132)
+print(b(read_input()), 6623)
+
+print(f"Elapsed: {time() - start_time:.3f}s")

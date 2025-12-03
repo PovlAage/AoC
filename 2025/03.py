@@ -76,7 +76,7 @@ test_input = """
 assert a(test_input) == 357, a(test_input)
 assert b(test_input) == 3121910778619, b(test_input)
 
-print(a(read_input_lines()))
-print(b(read_input_lines()))
+print(a(read_input_lines()), 17095)
+print(b(read_input_lines()), 168794698570517)
 
 print(f"Elapsed: {time() - start_time:.3f}s")
