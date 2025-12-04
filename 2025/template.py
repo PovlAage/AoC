@@ -16,6 +16,12 @@ day = int(__file__.rstrip('.py').split('/')[-1])
 print("day", day)
 start_time = time()
 
+def verify(actual, expected):
+    if actual == expected:
+        print("OK", actual)
+    else:
+        print(f"FAIL {actual}!={expected}")
+
 def read_input() -> str:
     return open(f'input/{day:02}').read().strip()
 
