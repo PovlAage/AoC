@@ -30,24 +30,27 @@ def read_input_lines() -> str:
 
 n8 = [(dy, dx) for dx in [-1, 0, 1] for dy in [-1, 0, 1] if (dx or dy)]
 
-def parse(lines) -> np.ndarray:
-    shape = (len(lines) + 2, len(lines[0]) + 2)
+def parse_arr(lines) -> np.ndarray:
+    shape = len(lines), len(lines[0])
     ydim, xdim = shape
     arr = np.zeros(shape=shape, dtype=int)
-    for y in range(1, ydim - 1):
-        for x in range(1, xdim - 1):
-            arr[y, x] = 1 if lines[y - 1][x - 1] == '@' else 0
+    for y in range(ydim):
+        for x in range(xdim):
+            arr[y, x] = 1 if lines[y][x] == '@' else 0
     return arr
 
-def set_edge_zero(arr):
-    arr[[0, -1], :] = 0
-    arr[:, [0, -1]] = 0
+def add_neighbour_array(arr: np.ndarray, n_arr: np.ndarray, sign=+1):
+    n_arr[1:, :-1]  += sign * arr[:-1, 1:]
+    n_arr[1:, :]    += sign * arr[:-1, :]
+    n_arr[1:, 1:]   += sign * arr[:-1, :-1]
+    n_arr[:, :-1]   += sign * arr[:, 1:]
+    n_arr[:, 1:]    += sign * arr[:, :-1]
+    n_arr[:-1, :-1] += sign * arr[1:, 1:]
+    n_arr[:-1, :]   += sign * arr[1:, :]
+    n_arr[:-1, 1:]  += sign * arr[1:, :-1]
 
-def get_neighbour_array(arr: np.ndarray) -> np.ndarray:
-    n_arr = np.zeros_like(arr)
-    for n in n8:
-        n_arr += np.roll(arr, shift=n, axis=(0, 1))
-    return n_arr
+def parse(lines) -> np.ndarray:
+    return parse_arr(lines)
 
 def count_iterated_remove(arr: np.ndarray, n_arr: np.ndarray, iterations=1):
     remove_count = 0
@@ -59,13 +62,13 @@ def count_iterated_remove(arr: np.ndarray, n_arr: np.ndarray, iterations=1):
             break
         remove_count += count_accessible
         arr -= arr_accessible
-        for n in n8:
-            n_arr -= np.roll(arr_accessible, shift=n, axis=(0, 1))
+        add_neighbour_array(arr_accessible, n_arr, -1)
     return remove_count
 
 def ab(lines, b):
     arr = parse(lines)
-    n_arr = get_neighbour_array(arr)
+    n_arr = np.zeros_like(arr)
+    add_neighbour_array(arr, n_arr)
     return count_iterated_remove(arr, n_arr, -1 if b else 1)
 
 def a(lines):
