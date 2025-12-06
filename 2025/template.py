@@ -28,6 +28,11 @@ def read_input() -> str:
 def read_input_lines() -> str:
     return open(f'input/{day:02}').read().strip().splitlines()
 
+def parse_blocks(text: str):
+    blocks = text.split('\n\n')
+    return blocks[0].split('\n'), blocks[1].split('\n')
+
+
 test_input = """
 """.strip().splitlines()
 
