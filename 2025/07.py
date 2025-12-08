@@ -53,20 +53,14 @@ def a(lines: list[str]):
 def b(lines: list[str]):
     w = len(lines[0])
     beams = [1 if c == "S" else 0 for c in lines[0]]
-    next_beams = [0] * w
     for i in range(1, len(lines)):
         splitters = [1 if c == "^" else 0 for c in lines[i]]
-        for i in range(w):
-            # continuing beams
-            next_beams[i] = beams[i] if not splitters[i] else 0
-        for i in range(w):
-            if splitters[i]:
-                # splitting beams
-                if i > 0:
-                    next_beams[i-1] += beams[i]
-                if i < len(lines) - 1:
-                    next_beams[i+1] += beams[i]
-        beams, next_beams = next_beams, beams
+        def beam_count(i):
+            continuing = beams[i] if not splitters[i] else 0
+            split_left = beams[i-1] if i > 0 and splitters[i-1] else 0
+            split_right = beams[i+1] if i < w-1 and splitters[i+1] else 0
+            return continuing + split_left + split_right
+        beams = [beam_count(i) for i in range(w)]
     return sum(beams)
 
 test_input = """
