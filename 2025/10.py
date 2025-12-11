@@ -7,6 +7,7 @@ from collections import defaultdict
 from itertools import permutations, pairwise
 from math import *
 from time import time
+from ortools.linear_solver import pywraplp
 
 import numpy as np
 import re
@@ -136,92 +137,35 @@ assert partitions(3, 2) == ((0, 3), (1, 2), (2, 1), (3, 0))
 assert partitions(1, 3) == ((0, 0, 1), (0, 1, 0), (1, 0, 0))
 
 call_count = 0
-def shortest_b(m: MachineJoltage, verbose=False):
+def shortest_b(machine: MachineJoltage, verbose=False):
     global call_count
-    if verbose: print(call_count, m)
+    if verbose: print(call_count, machine)
     call_count += 1
-    jcount, bcount = len(m.joltage_requirements), len(m.buttons)
-    req_j = np.array(m.joltage_requirements, dtype=int)
+    jcount, bcount = len(machine.joltage_requirements), len(machine.buttons)
+    req_j = np.array(machine.joltage_requirements, dtype=int)
     button_arr_2 = np.zeros(shape=(bcount, jcount), dtype=int)
     for bi in range(bcount):
-        for ji in m.buttons[bi]:
+        for ji in machine.buttons[bi]:
             button_arr_2[bi, ji] = 1
 
-    # heuristik: sorter så vi tager de mindste jreqs first. På de første ca. 20 input ser det ud til at være en god forcing function
-    permutation_j = np.argsort(req_j)
-    req_j = req_j[permutation_j]
-    button_arr_2 = button_arr_2[:, permutation_j]
 
-    # samme for knapper, "længste" sidst, så de først får chancen (cf. partitions)
-    button_lengths = button_arr_2.sum(axis=1)
-    permutation_b = np.argsort(button_lengths)
-    button_arr_2 = button_arr_2[permutation_b, :]
+    A = np.matrix(button_arr_2).transpose()
+    b = req_j
+    m, n = A.shape
 
-    button_arr_3 = np.zeros(shape=(jcount, bcount, jcount), dtype=int)
-    active_buttons = np.ones(bcount, dtype=int)
-    for j in range(jcount):
-        button_arr_3[j, :, :] = button_arr_2
-        button_arr_3[j, :, :] *= active_buttons[:, None]
-        active_buttons -= button_arr_3[j, :, j]
+    solver = pywraplp.Solver.CreateSolver("CBC")
+    x = [solver.IntVar(0, solver.infinity(), f"x{i}") for i in range(n)]
+    for i in range(m):
+        solver.Add(sum(A[i, j] * x[j] for j in range(n)) == b[i])
+    solver.Minimize(solver.Sum(x))
 
-    button_index_dicts = [dict(enumerate(np.flatnonzero(button_arr_3[j, :, j]))) for j in range(jcount)]  # indices of the buttons hitting j
-
-    @functools.cache
-    def sum_partition(p, j):
-        button_arr = button_arr_3[j, :, :]
-        button_index = button_index_dicts[j]
-        idx = np.array([button_index[pi] for pi in range(len(p))], dtype=int)
-        coef = np.asarray(p)
-        return coef @ button_arr[idx, :]  # shape: (n_cols,)
-
-    loop_cache = {}
-
-    best = 1e9
-    def loop(acc_j: np.ndarray, j: int, acc_presses):
-        nonlocal best
-        if j == len(req_j):
-            # we have processed the last joltage, so this is a solution
-            if acc_presses < best:
-                print(acc_presses)
-            best = min(best, acc_presses)
-            return acc_presses
-        elif np.greater(acc_j[j:], req_j[j:]).any():
-            # we have exceeded one of the joltage requirements, so abort this sequence
-            return None
-        else:
-            count_buttons_hitting_j = len(button_index_dicts[j])
-            j_remaining = int(req_j[j] - acc_j[j])
-            if j_remaining + acc_presses >= best:
-                # cannot improve
-                return None
-            elif j_remaining > 0 and count_buttons_hitting_j == 0:
-                # there are no buttons left to press, and we have not fulfilled joltage requirements
-                return None
-            else:
-                # don't cache cases above since cache key computation is more expensive than those checks
-                cache_key_1 = tuple((j, tuple(int(x) for x in acc_j)))
-                cached_acc_presses, cached_value = loop_cache.get(cache_key_1, (1e9, None))
-                if cached_acc_presses <= acc_presses:
-                    return None # we've already been here, with fewer accumulated presses
-                elif cached_acc_presses < 1e9:
-                    return acc_presses - cached_acc_presses + cached_value
-                else:
-                    retval = None
-                    for p in partitions(j_remaining, count_buttons_hitting_j):
-                        result_p = loop(acc_j=acc_j + sum_partition(p, j), j=j+1, acc_presses=acc_presses + j_remaining)
-                        if retval is None:
-                            retval = result_p
-                        elif result_p is not None:
-                            retval = min(retval, result_p)
-                    if retval is None:
-                        retval = 1e9
-
-                if cache_key_1 not in loop_cache:
-                    retval = int(retval)
-                    loop_cache[cache_key_1] = (acc_presses, retval)
-                return retval
-
-    return loop(acc_j=np.zeros_like(req_j), j=0, acc_presses=0)
+    status = solver.Solve()
+    if status == solver.OPTIMAL:
+        s = sum([xi.solution_value() for xi in x])
+        assert int(s) == s
+        return int(s)
+    else:
+        raise ValueError("No solution")
 
 def a(lines: list[str]):
     return sum(shortest(m) for m in parse(lines, b=False))
@@ -259,6 +203,6 @@ assert a(test_input) == 7
 assert b(test_input) == 33
 
 verify(a(read_input_lines()), 401)
-verify(b(read_input_lines(), verbose=True), -1)
+verify(b(read_input_lines()), 15017)
 
 print(f"Elapsed: {time() - start_time:.3f}s")
