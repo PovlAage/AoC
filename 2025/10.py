@@ -176,40 +176,52 @@ def shortest_b(m: MachineJoltage, verbose=False):
 
     loop_cache = {}
 
-    def loop(acc_j: np.ndarray, j: int):
+    best = 1e9
+    def loop(acc_j: np.ndarray, j: int, acc_presses):
+        nonlocal best
         if j == len(req_j):
             # we have processed the last joltage, so this is a solution
-            return 0
+            if acc_presses < best:
+                print(acc_presses)
+            best = min(best, acc_presses)
+            return acc_presses
         elif np.greater(acc_j[j:], req_j[j:]).any():
             # we have exceeded one of the joltage requirements, so abort this sequence
-            return 1e9
+            return None
         else:
             count_buttons_hitting_j = len(button_index_dicts[j])
             j_remaining = int(req_j[j] - acc_j[j])
-            if j_remaining > 0 and count_buttons_hitting_j == 0:
+            if j_remaining + acc_presses >= best:
+                # cannot improve
+                return None
+            elif j_remaining > 0 and count_buttons_hitting_j == 0:
                 # there are no buttons left to press, and we have not fulfilled joltage requirements
-                return 1e9
+                return None
             else:
                 # don't cache cases above since cache key computation is more expensive than those checks
-                cache_key = tuple((3, tuple(int(x) for x in acc_j)))
-                if cache_key in loop_cache:
-                    return loop_cache[cache_key]
+                cache_key_1 = tuple((j, tuple(int(x) for x in acc_j)))
+                cached_acc_presses, cached_value = loop_cache.get(cache_key_1, (1e9, None))
+                if cached_acc_presses <= acc_presses:
+                    return None # we've already been here, with fewer accumulated presses
+                elif cached_acc_presses < 1e9:
+                    return acc_presses - cached_acc_presses + cached_value
+                else:
+                    retval = None
+                    for p in partitions(j_remaining, count_buttons_hitting_j):
+                        result_p = loop(acc_j=acc_j + sum_partition(p, j), j=j+1, acc_presses=acc_presses + j_remaining)
+                        if retval is None:
+                            retval = result_p
+                        elif result_p is not None:
+                            retval = min(retval, result_p)
+                    if retval is None:
+                        retval = 1e9
 
-                best = 1e9
-                for p in partitions(j_remaining, count_buttons_hitting_j):
-                    p_result = loop(acc_j=acc_j + sum_partition(p, j), j=j+1)
-                    best = min(best, p_result)
-
-                retval = j_remaining + best
-
-                retval = int(retval)
-                if cache_key not in loop_cache:
-                    if retval < 1e9:
-                        print(j, retval, cache_key)
-                    loop_cache[cache_key] = retval
+                if cache_key_1 not in loop_cache:
+                    retval = int(retval)
+                    loop_cache[cache_key_1] = (acc_presses, retval)
                 return retval
 
-    return loop(acc_j=np.zeros_like(req_j), j=0)
+    return loop(acc_j=np.zeros_like(req_j), j=0, acc_presses=0)
 
 def a(lines: list[str]):
     return sum(shortest(m) for m in parse(lines, b=False))
