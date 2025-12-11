@@ -217,55 +217,56 @@ def a(lines):
 
 def b(lines, verbose=False):
     points = parse(lines)
-    print("parsed")
     corners, black_lines = build(points)
-    print("built")
     if verbose:
         if len(corners) > 20:
             print("Cannot plot this large")
         else:
             plot(corners, black_lines)
 
-    def intersect_rect_line(r1: Point, r2: Point, l: Line):
-        l1, l2 = l
-        is_horizontal = l1.y == l2.y
-        if not is_horizontal:
-            def flip(p: Point):
-                return Point(y=p.x, x=p.y)
-            return intersect_rect_line(flip(r1), flip(r2), (flip(l1), flip(l2)))
-        if not r1 < r2:
-            return intersect_rect_line(r2, r1, (l1, l2))
-        if not l1 < l2:
-            return intersect_rect_line(r1, r2, (l2, l1))
-        if not r1 < r2 and l1 < l2 and l1.y == l2.y:
-            assert is_horizontal and r1 < r2 and l1 < l2 and l1.y == l2.y
-        y = l1.y
-        if not r1.y <= l1.y <= r2.y:
-            return False
-        if l2.x < min(r1.x, r2.x) or l1.x > max(r1.x, r2.x):
-            return False
-        return True
+    def intersect_normalized_rect_line(r1x, r1y, r2x, r2y, l: Line):
+        l0x, l0y, l1x, l1y = l[0].x, l[0].y, l[1].x, l[1].y
+#        assert r1x <= r2x and r1y <= r2y and l0x <= l1x and l0y <= l1y
 
-    def admissible_rect(p1, p2):
-        retval = not any(intersect_rect_line(p1, p2, l) for l in black_lines)
-        if not retval:
-            pass
-            #print("not admissible", p1, p2)
-        return retval
+        def rect_contains(p: Point):
+            return r1x <= p.x <= r2x and r1y <= p.y <= r2y
 
-    max_area = -1
+        if rect_contains(l[0]) or rect_contains(l[1]):
+            return True
+        is_vertical = l0y != l1y
+        if is_vertical:
+            return r1x <= l0x <= r2x and l0y < r1y <= r2y < l1y
+        else:
+            return r1y <= l0y <= r2y and l0x < r1x <= r2x < l1x
+
+    def normalize_line(l: Line):
+        return (
+            Point(x=min(l[0].x, l[1].x), y=min(l[0].y, l[1].y)),
+            Point(x=max(l[0].x, l[1].x), y=max(l[0].y, l[1].y)),
+        )
+
+    black_lines = [normalize_line(l) for l in black_lines]
+
+    def is_admissible_rect(p1, p2):
+        # normalized rect
+        r1x, r1y = min(p1.x, p2.x), min(p1.y, p2.y)
+        r2x, r2y = max(p1.x, p2.x), max(p1.y, p2.y)
+
+        def intersect_line(l):
+            return intersect_normalized_rect_line(r1x, r1y, r2x, r2y, l)
+
+        return not any(intersect_line(l) for l in black_lines)
+
     l = len(list(permutations(points, 2)))
     i = 0
     pct = l // 100 + 1
-    for p1, p2 in permutations(points, 2):
+    area_and_permutations = sorted([(area(p1, p2), p1, p2) for p1, p2 in permutations(points, 2)], reverse=True)
+    for a, p1, p2 in area_and_permutations:
         i += 1
-        if i % pct == 0: print(f"{i}/{l}: {max_area}")
-        a = area(p1, p2)
-        if a > max_area and admissible_rect(p1, p2):
-            # if verbose: print("area", p1, p2, a)
-            max_area = a
-
-    return max_area
+        if i % (5 * pct) == 0: print(f"{i}/{l}")
+        if is_admissible_rect(p1, p2):
+            return a
+    raise ValueError("No admissible rect found")
 
 test_input = """
 7,1
